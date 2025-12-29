@@ -10,6 +10,8 @@ Bu proje; **Go (Golang) dilini kullanarak**, toplu hedef listesini (YAML) işley
 - ✅ CTI süreçlerindeki **Collection** (Toplama) yetkinliği kazanma
 - ✅ **Automation** (Otomasyon) yetkinliği kazanma
 - ✅ Go'nun Goroutine'leri ile paralel işleme performansı
+- ✅ **IP sızıntısını önlemek** için özel HTTP Transport/Client kullanımı
+- ✅ Kapsamlı loglama ve JSON raporlama
 
 ---
 
@@ -18,6 +20,256 @@ Bu proje; **Go (Golang) dilini kullanarak**, toplu hedef listesini (YAML) işley
 Proje 4 ana modülden oluşmaktadır:
 
 ### 1. **Dosya Okuma Modülü (Input Handler)** - `internal/input/`
+- YAML formatında .onion adreslerini okur
+- Her URL'i temizler (whitespace trimming)
+- Hedef listesini döndürür
+
+### 2. **Tor Proxy Yönetimi (Go Proxy Client)** - `internal/tor/`
+- `net/http` kütüphanesini SOCKS5 proxy'sine yönlendirir (127.0.0.1:9050)
+- **IP sızıntısını önlemek** için özel `http.Transport` ve `http.Client` yapılandırması
+- TOR ağı üzerinden anonim bağlantı sağlar
+
+### 3. **Tarama Modülü (Scanner)** - `internal/scanner/`
+- **HTTP Client**: SOCKS5 proxy üzerinden HTML içeriğini çeker
+- **IP Verification**: check.torproject.org adresi kontrol ederek TOR IP'sini doğrular
+- **Chromedp**: TOR proxy üzerinden tarayıcı ile ekran görüntüsü alır
+- Hata yönetimi: Dead site'ler programı durdurmaz, loglayıp devam eder
+
+### 4. **Veri Kayıt Modülü (Output Writer)** - `internal/output/`
+- **HTML Dosyaları**: `output/html/` dizinine URL adı + timestamp ile kaydedilir
+- **Screenshot'lar**: `output/screenshots/` dizinine PNG formatında kaydedilir
+- **JSON Rapor**: `output/scan_report_*.json` - Detaylı tarama sonuçları
+- **Log Dosyası**: `output/scan_report_*.log` - Tüm işlemlerin kaydı
+
+### 5. **Logger Modülü** - `internal/logger/`
+- Console ve dosyaya eş zamanlı loglama
+- Timestamp ile her log kaydı
+- INFO, ERROR, SUCCESS, WARN seviyeleri
+
+---
+
+## 💻 Kurulum ve Çalıştırma
+
+### Ön Koşullar
+1. **Go** (1.19+) yüklü olmalı
+2. **Tor Service** çalışır durumda olmalı (SOCKS5: 127.0.0.1:9050)
+3. **Chromium/Chrome** tarayıcı yüklü olmalı (Chromedp için)
+
+### Windows'ta TOR Kurulumu
+```bash
+# Option 1: Tor Browser kullanın (en kolay)
+# https://www.torproject.org/download/
+
+# Option 2: Tor Service kurulum
+# https://www.torproject.org/download/#windows
+```
+
+### Go Projesini Kurma
+```bash
+# Repository'i clone et
+git clone https://github.com/ali-ellikci/TorScraper.git
+cd TorScraper
+
+# Bağımlılıkları indir
+go mod download
+go mod tidy
+
+# Projeyi çalıştır
+go run .\cmd\tor-scraper\main.go
+
+# Veya derle
+go build -o TorScraper.exe .\cmd\tor-scraper\main.go
+.\TorScraper.exe
+```
+
+---
+
+## 📊 Çıktılar
+
+### Başarılı çalıştırma sonrasında oluşan dosyalar:
+
+```
+output/
+├── screenshots/          # PNG ekran görüntüleri
+│   ├── bestteermb42clir_20251229_075511.png
+│   ├── dreadytofatropt_20251229_075512.png
+│   └── ...
+├── html/                 # HTML dosyaları
+│   ├── bestteermb42clir_20251229_075511.html
+│   ├── dreadytofatropt_20251229_075512.html
+│   └── ...
+├── scan_report_20251229_075511.log    # Log dosyası
+└── scan_report_20251229_075511.json   # JSON rapor
+```
+
+### JSON Rapor Formatı
+```json
+{
+  "start_time": "2025-12-29T07:55:07.123456Z",
+  "end_time": "2025-12-29T07:55:20.654321Z",
+  "total_targets": 9,
+  "success_count": 1,
+  "fail_count": 8,
+  "records": [
+    {
+      "url": "https://www.google.com/",
+      "status": "SUCCESS",
+      "status_code": 200,
+      "ip_address": "{\"ip\":\"1.2.3.4\",\"is_tor\":true}",
+      "timestamp": "2025-12-29T07:55:15.123456Z",
+      "screenshot_path": "output/screenshots/www.google.com_20251229_075515.png",
+      "html_path": "output/html/www.google.com_20251229_075515.html"
+    },
+    {
+      "url": "http://bestteermb42clir6ux7xm76d4jjodh3fpahjqgbddbmfrgp4skg2wqd.onion/",
+      "status": "FAILED",
+      "timestamp": "2025-12-29T07:55:08.654321Z",
+      "error": "[FAILED] failed to scan target: page load error net::ERR_NAME_NOT_RESOLVED"
+    }
+  ]
+}
+```
+
+---
+
+## 🔧 Yapı ve Dosya Tasnifi
+
+```
+TorScraper/
+├── cmd/
+│   └── tor-scraper/
+│       └── main.go              # Ana program giriş noktası
+├── internal/
+│   ├── input/
+│   │   └── reader.go            # YAML dosya okuma
+│   ├── logger/
+│   │   └── logger.go            # Loglama sistemi
+│   ├── output/
+│   │   ├── writer.go            # HTML/Screenshot kaydetme
+│   │   ├── report.go            # JSON rapor oluşturma
+│   │   └── screen_report.go     # Screen rapor (opsiyonel)
+│   ├── scanner/
+│   │   └── scanner.go           # Tarama motoru (HTTP + Chromedp)
+│   └── tor/
+│       └── client.go            # TOR SOCKS5 client yapılandırması
+├── configs/
+│   └── targets.yaml             # Taranacak .onion adresleri
+├── output/                      # Çıktı dosyaları (otomatik oluşturulur)
+├── go.mod                       # Go modülü tanımı
+├── go.sum                       # Bağımlılık haritası
+└── README.md                    # Bu dosya
+```
+
+---
+
+## 🔐 Güvenlik Özellikleri
+
+### 1. **IP Sızıntısı Koruma**
+- Özel `http.Transport` yapılandırması
+- SOCKS5 proxy aracılığıyla tüm trafiğin yönlendirilmesi
+- IP verification: `check.torproject.org` kontrolü
+
+### 2. **Hata Yönetimi**
+- Dead site'ler (ERR_NAME_NOT_RESOLVED) programı durdurmaz
+- Timeout yönetimi (30 saniye)
+- Her hata kaydedilir ve rapora eklenir
+
+### 3. **Veri Güvenliği**
+- Tüm çıktılar `output/` dizininde merkezi yönetim
+- JSON rapor ile yapılandırılmış veri depolama
+- Timestamp ile dosya çakışmalarını önleme
+
+---
+
+## 📝 Kullanım Örneği
+
+### 1. Hedef Dosyası Hazırlama
+`configs/targets.yaml`:
+```yaml
+http://bestteermb42clir6ux7xm76d4jjodh3fpahjqgbddbmfrgp4skg2wqd.onion/
+https://dreadytofatroptsdj6io7l3xptbet6onoyno2yv7jicoxknyazubrad.onion/
+https://www.google.com/
+```
+
+### 2. TOR Servisini Başlat
+```bash
+# Windows: Tor Browser'ı çalıştırın
+# veya Tor Service kurulu ise:
+# Net Start Tor
+```
+
+### 3. Programı Çalıştır
+```bash
+go run .\cmd\tor-scraper\main.go
+```
+
+### 4. Sonuçları İnceле
+```bash
+# Log dosyasını oku
+type output\scan_report_*.log
+
+# JSON raporunu oku
+type output\scan_report_*.json
+
+# Screenshot'ları görüntüle
+dir output\screenshots\
+
+# HTML dosyalarını kontrol et
+dir output\html\
+```
+
+---
+
+## 🎯 Beklenen Terminal Çıktısı
+
+```
+2025/12/29 07:55:07 [INFO] Starting TOR Scraper with 9 targets
+2025/12/29 07:55:07 [INFO] [1/9] Scanning: http://bestteermb42clir6ux7xm76d4jjodh3fpahjqgbddbmfrgp4skg2wqd.onion/
+2025/12/29 07:55:08 [ERR] http://bestteermb42clir6ux7xm76d4jjodh3fpahjqgbddbmfrgp4skg2wqd.onion/ -> [FAILED] failed to scan target...
+2025/12/29 07:55:08 [INFO] [9/9] Scanning: https://www.google.com/
+2025/12/29 07:55:15 [INFO] Using TOR IP: {"ip":"1.2.3.4","is_tor":true}
+2025/12/29 07:55:15 [SUCCESS] Screenshot saved: output\screenshots\www.google.com_20251229_075515.png
+2025/12/29 07:55:15 [SUCCESS] HTML saved: output\html\www.google.com_20251229_075515.html
+2025/12/29 07:55:15 [SUCCESS] https://www.google.com/ (Status: 200, IP: {"ip":"1.2.3.4","is_tor":true})
+2025/12/29 07:55:16 [INFO] Report saved: output/scan_report_20251229_075515.json
+2025/12/29 07:55:16 [INFO] ========================================
+2025/12/29 07:55:16 [INFO] Total: 9, Success: 1, Failed: 8
+2025/12/29 07:55:16 [INFO] Screenshots: output/screenshots/
+2025/12/29 07:55:16 [INFO] HTML files: output/html/
+2025/12/29 07:55:16 [INFO] Log file: output/scan_report_*.log
+2025/12/29 07:55:16 [INFO] JSON Report: output/scan_report_20251229_075515.json
+```
+
+---
+
+## 🛠️ Gerekli Kütüphaneler
+
+```go
+require (
+	github.com/chromedp/chromedp v0.14.2
+	golang.org/x/net v0.48.0  // SOCKS5 proxy desteği
+)
+```
+
+---
+
+## 📚 Eğitmen Notu
+
+> "Go dili, modern bulut ve ağ araçlarının dilidir. Bu projede Python yerine Go kullanmamızın sebebi, ileride binlerce siteyi aynı anda taramak istediğinizde Go'nun 'Goroutines' yapısının size sağlayacağı performansı şimdiden hissetmenizdir. Bu ödevde basit bir döngü kullanabilirsiniz, ancak meraklıları 'goroutine' ile taramayı hızlandırmayı deneyebilir!"
+
+---
+
+## 📄 Lisans
+
+Bu proje eğitim amaçlı geliştirilmiştir.
+
+---
+
+## ✍️ Yazar
+
+**Siber Tehdit İstihbaratı (CTI) Projesi**  
+Eğitim Amacı: Tor Ağı Üzerinde Otomatize Veri Toplama
+
 - Komut satırından YAML dosyası okunur
 - Her satır temizlenir (whitespace trimming)
 - .onion adresleri listelenip işleme hazırlanır
