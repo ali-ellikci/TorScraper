@@ -419,26 +419,7 @@ TorScraper/
 └── targets.yaml                 # Hedef .onion adresleri
 ```
 
----
 
-## ⚡ Performans Özellikleri
-
-### Goroutines ile Hızlandırma (İsteğe Bağlı)
-Projenin basit sürümü sırayla tarama yaparken, ileri kullanıcılar **Goroutines** kullanarak paralelleştirme yapabilir:
-
-```go
-// Sırayla tarama (Temel)
-for _, target := range targets {
-    scanTarget(target)
-}
-
-// Paralel tarama (İleri - Goroutines)
-for _, target := range targets {
-    go scanTarget(target)
-}
-```
-
-**Not:** Goroutines kullanırken rate limiting ve bağlantı yönetimi kritiktir!
 
 ---
 
@@ -525,11 +506,6 @@ $ curl --socks5 127.0.0.1:9050 https://check.torproject.org
 
 Bu proje eğitim amaçlıdır.
 
----
-
-## 👨‍💻 Geliştirici Notları
-
-> "Go dili, modern bulut ve ağ araçlarının dilidir. Bu projede Python yerine Go kullanmamızın sebebi, ileride binlerce siteyi aynı anda taramak istediğinizde Go'nun 'Goroutines' yapısının size sağlayacağı performansı şimdiden hissetmenizdir. Bu ödevde basit bir döngü kullanabilirsiniz, ancak meraklıları 'goroutine' ile taramayı hızlandırmayı deneyebilir!"
 
 ---
 
