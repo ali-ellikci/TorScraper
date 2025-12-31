@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-// ScanRecord represents a single scan result in the report
 type ScanRecord struct {
 	URL            string    `json:"url"`
 	Status         string    `json:"status"`

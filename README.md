@@ -253,11 +253,6 @@ require (
 
 ---
 
-## 📚 Eğitmen Notu
-
-> "Go dili, modern bulut ve ağ araçlarının dilidir. Bu projede Python yerine Go kullanmamızın sebebi, ileride binlerce siteyi aynı anda taramak istediğinizde Go'nun 'Goroutines' yapısının size sağlayacağı performansı şimdiden hissetmenizdir. Bu ödevde basit bir döngü kullanabilirsiniz, ancak meraklıları 'goroutine' ile taramayı hızlandırmayı deneyebilir!"
-
----
 
 ## 📄 Lisans
 

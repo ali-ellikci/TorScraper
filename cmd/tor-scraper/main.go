@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"net/http"
 	"sync"
 
 	"github.com/ali-ellikci/TorScraper/internal/input"
@@ -35,7 +36,6 @@ func main() {
 
 	reportWriter := output.NewReportWriter(len(targets))
 
-	// Scan targets using goroutines
 	scanTargets(targets, client, appLogger, reportWriter)
 
 	// Save report
@@ -70,14 +70,7 @@ func scanTargets(targets []string, client interface{}, appLogger *logger.Logger,
 
 			appLogger.Info("[%d/%d] Scanning: %s", index+1, len(targets), targetURL)
 
-			torClient, err := tor.NewTorClient()
-			if err != nil {
-				appLogger.Error("Failed to create TOR client: %v", err)
-				reportWriter.AddError(targetURL, err.Error())
-				return
-			}
-
-			result, err := scanner.ScanTarget(context.Background(), torClient, targetURL)
+			result, err := scanner.ScanTarget(context.Background(), client.(*http.Client), targetURL)
 			if err != nil {
 				appLogger.Error("%s -> %v", targetURL, err)
 				reportWriter.AddError(targetURL, err.Error())
